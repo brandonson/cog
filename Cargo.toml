@@ -1,0 +1,9 @@
+[package]
+name = "cog"
+version = "0.0.1"
+authors = ["Brandon Sanderson <bas.bsanders@gmail.com>"]
+
+[dependencies]
+ncurses = "*"
+nom = "*"
+
