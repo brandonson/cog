@@ -6,4 +6,6 @@ authors = ["Brandon Sanderson <bas.bsanders@gmail.com>"]
 [dependencies]
 ncurses = "*"
 nom = "*"
-
+docopt_macros = "*"
+docopt = "*"
+rustc-serialize = "*"

@@ -1,4 +1,3 @@
-use nom::IResult::*;
 use nom::{not_line_ending, line_ending, space, alphanumeric};
 
 use collections::borrow::ToOwned;
@@ -20,7 +19,7 @@ named! (box_spec <&[u8], BlockSpec>,
     ||{BlockSpec::Boxed(
         name,
         coloring,
-        String::from_utf8(text_line.to_owned()).unwrap())}
+        (&String::from_utf8(text_line.to_owned()).unwrap()).trim().to_owned())}
   )
 );
 
@@ -35,7 +34,8 @@ named! (coloring_spec <&[u8], Coloring>,
             tag!("yellow") => { |_| Coloring::Yellow } |
             tag!("blue") => { |_| Coloring::Blue } |
             tag!("magenta") => { |_| Coloring::Magenta } |
-            tag!("cyan") => { |_| Coloring::Cyan }
+            tag!("cyan") => { |_| Coloring::Cyan } |
+            tag!("white") => { |_| Coloring::White }
         ),
     ||c));
 
@@ -71,6 +71,18 @@ named! (ident_str <&[u8], String>,
     data: alphanumeric,
     || String::from_utf8(data.to_owned()).unwrap()));
 
+named! (data_spec <&[u8], DataSpec>,
+  alt!(connection_spec => { |conn| DataSpec::ConnectionDataSpec(conn) } |
+       box_spec => { |data| DataSpec::BlockDataSpec(data) }
+  )
+);
+
+pub type DataVec = Vec<DataSpec>;
+
+named! (pub full_graph_spec <&[u8], DataVec>,
+  separated_list!(many1!(chain!(space? ~ line_ending, || ())), data_spec));
+
+#[cfg(test)]
 mod test{
   use collections::borrow::ToOwned;
   use super::{box_spec, connection_spec};

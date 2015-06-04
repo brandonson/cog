@@ -1,0 +1,7 @@
+box text start color green
+  Start
+
+box text end color blue
+  End
+
+generic connection start end color white

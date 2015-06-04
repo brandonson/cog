@@ -22,6 +22,7 @@ pub enum ConnectionType {
 pub enum Coloring {
   Default,
   Black,
+  White,
   Red,
   Green,
   Yellow,
@@ -30,3 +31,8 @@ pub enum Coloring {
   Cyan
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum DataSpec {
+  BlockDataSpec(BlockSpec),
+  ConnectionDataSpec(Connection)
+}
