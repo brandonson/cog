@@ -15,6 +15,7 @@ use std::error::Error;
 
 mod parser;
 mod data;
+mod layout;
 
 docopt!(Args derive Debug, "
 Usage: cog [options] <infile>
