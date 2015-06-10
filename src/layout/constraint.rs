@@ -10,6 +10,7 @@ pub struct BlockConstraint {
   pub min_limited_width: u32,
   pub max_height_per_width: u32,
   pub max_width_per_height: u32,
+  pub inter_block_distance: u32,
 }
 
 pub struct LayoutConstraint {
@@ -17,7 +18,6 @@ pub struct LayoutConstraint {
   pub block: BlockConstraint,
   pub max_width: u32,
   pub max_height: u32,
-  pub inter_block_distance: u32,
 }
 
 trait Constraint<C> {
