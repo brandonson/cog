@@ -45,7 +45,7 @@ fn main() {
     };
 
   let constraint = BlockConstraint {
-    min_limited_width: 20,
+    min_limited_width: 40,
     max_height_per_width: 1,
     max_width_per_height: 10,
     inter_block_distance: 5

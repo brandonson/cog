@@ -4,4 +4,7 @@ box text start color green
 box text end color blue
   End
 
+box text random color red
+  lorem ipsum dolor sit amet, consectitur adipiscing elit.
+
 generic connection start end color white

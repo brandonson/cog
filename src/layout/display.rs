@@ -18,8 +18,6 @@ impl Add for Position {
   }
 }
 
-
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Size{
   pub width: u32,
@@ -114,14 +112,14 @@ impl BlockDisplay{
     }
 
     //This currently ignores the limitation on being too tall,
-    //to make implementation easier.  It also just sticks
+    //to make implementation easier.
     //TODO make this properly expand horizontally if needed
     let mut lines:Vec<String> = vec![];
     let mut current_line = String::new();
     let mut widest_line:u32 = 0;
     for word in test.split(' ') {
       if current_line.len() + word.len() + 5 > constraint.min_limited_width as usize{
-        let old_current = mem::replace(&mut current_line, word.to_owned());
+        let old_current = mem::replace(&mut current_line, String::new());
         widest_line = max(old_current.len() as u32, widest_line);
         lines.push(old_current);
       }
@@ -131,12 +129,15 @@ impl BlockDisplay{
         widest_line = max(old_current.len() as u32, widest_line);
         lines.push(old_current);
       } else {
-        current_line.push(' ');
+        if current_line.len() > 0 {
+          current_line.push(' ');
+        }
         current_line.push_str(word);
       }
     }
 
     if current_line.len() > 0 {
+      widest_line = max(current_line.len() as u32, widest_line);
       lines.push(current_line);
     }
 
@@ -198,9 +199,12 @@ impl BlockCornerIter {
     use self::BlockCorner::*;
     match corner {
       TopLeft => self.top_left,
-      TopRight => self.top_left.add_x(self.block_size.width),
-      BottomLeft => self.top_left.add_y(self.block_size.height),
-      BottomRight => self.top_left.add_size(self.block_size)
+      TopRight => self.top_left.add_x(self.block_size.width - 1),
+      BottomLeft => self.top_left.add_y(self.block_size.height - 1),
+      BottomRight =>
+        self.top_left
+          .add_x(self.block_size.width - 1)
+          .add_y(self.block_size.height - 1)
     }
   }
 }
