@@ -1,4 +1,5 @@
 pub mod block;
+pub mod connection;
 use ncurses::{chtype, mvaddch};
 use layout::display::Position;
 

@@ -7,4 +7,17 @@ box text end color blue
 box text random color red
   lorem ipsum dolor sit amet, consectitur adipiscing elit.
 
+box text fish color default
+  One fish, two fish, red fish, blue fish
+
+generic connection random end color magenta
+generic connection start random color yellow
+singular connection start random color magenta
+
+dual connection start random color cyan
+
 generic connection start end color white
+generic connection start random color white
+
+generic connection start random color default
+singular connection start fish

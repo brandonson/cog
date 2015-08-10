@@ -8,6 +8,8 @@ pub fn draw_block_display(
   block: BlockDisplay) {
   
   let top_left = offset + block.pos;
+
+  block.color.color_on();
   
   for corner in block.corners() {
     corner.place_char('+');
@@ -26,4 +28,6 @@ pub fn draw_block_display(
     let start_pos = top_left.add_y(i + 1).add_x(2);
     mvprintw(start_pos.y as i32, start_pos.x as i32, content);
   }
+
+  block.color.color_off();
 }

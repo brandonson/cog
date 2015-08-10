@@ -1,37 +1,20 @@
-pub mod constraint;
-pub mod display;
-pub mod backtracking;
-
-use self::constraint::{LayoutConstraint,BlockConstraint, ConnectionConstraint};
-use self::display::{Position, ConnectionDisplay, BlockDisplay, ConnectionPart};
-use data::{Connection, BlockSpec};
+use super::constraint::{LayoutConstraint,BlockConstraint, ConnectionConstraint};
+use super::display::{Position, ConnectionDisplay, BlockDisplay, ConnectionPart};
+use data::{Connection, BlockSpec, ConnectionType};
 use std::collections::{VecDeque,HashMap};
 use std::cmp::max;
 
 use astar::ReusableSearchProblem;
 use astar::astar;
 
-pub trait LayoutManager{
-  fn determine_block_vector_layout<'a>(
-    &self,
-    blocks: &'a [BlockSpec],
-    constraint: &BlockConstraint)
-      -> Vec<(&'a BlockSpec, BlockDisplay)>;
+use super::LayoutManager;
 
-  fn determine_connection_layout(
-    &self,
-    connections:&[Connection],
-    blocks: &[(&BlockSpec, BlockDisplay)],
-    constraint:&LayoutConstraint)
-      -> Vec<ConnectionDisplay> ;
-}
-
-pub struct DownwardLayout {
+pub struct BacktrackingDownwardLayout {
   pub screen_width: u32,
   pub screen_height: u32
 }
 
-impl LayoutManager for DownwardLayout {
+impl LayoutManager for BacktrackingDownwardLayout {
   fn determine_block_vector_layout<'a>(
     &self,
     blocks:&'a [BlockSpec],
@@ -54,7 +37,7 @@ impl LayoutManager for DownwardLayout {
     for block_display_tup in displays.iter_mut() {
       let block_display = &mut block_display_tup.1;
       block_display.pos.x = self.screen_width/2 - block_display.size.width/2;
-      block_display.pos.y = last_end_y + block_display.size.height + y_spacing;
+      block_display.pos.y = last_end_y  + y_spacing;
       
       last_end_y = block_display.pos.y;
     }
@@ -68,82 +51,158 @@ impl LayoutManager for DownwardLayout {
     blocks: &[(&'a BlockSpec, BlockDisplay)],
     constraint:&LayoutConstraint)
       -> Vec<ConnectionDisplay> {
-    let min_distance_from_box = constraint.connection.box_distance;
-
-    let mut open_connectors: HashMap<&'a str, Vec<Position>> = HashMap::new();
-
-    for &(block, ref block_disp) in blocks.iter() {
-      open_connectors.insert(block.get_name(), core_connectors(block_disp));
-    }
-
-    let mut blocked_positions = vec![];
-
-    let mut paths:Vec<ConnectionDisplay> = Vec::with_capacity(connections.len());
-
-    for conn in connections.iter() {
-      let (result,new_starts, new_ends) = {
-        let start_conns_opt = open_connectors.get(&conn.start[..]);
-        let end_conns_opt = open_connectors.get(&conn.end[..]);
-  
-        if start_conns_opt.is_none() || end_conns_opt.is_none() {
-          break;
-        }
-  
-        let start_conns = start_conns_opt.unwrap();
-        let end_conns = end_conns_opt.unwrap();
-        let filtered_blocks:(Vec<_>,Vec<_>) =
-          blocks.iter().partition(|b| {
-            let name = b.0.get_name();
-            name != conn.start && name != conn.end
-          });
-  
-        let result = start_conns.iter().filter_map(
-          |start| {
-            end_conns.iter().filter_map(
-              |end| {
-                let mut node_finder =
-                  DisplayNodeFinder{
-                    blocks: filtered_blocks.0.iter().map(|x| &x.1).collect(),
-                    non_checked_blocks: filtered_blocks.1.iter().map(|x| &x.1).collect(),
-                    constraint:constraint,
-                    end_point: *end,
-                    blocked: blocked_positions.as_slice()};
-                let mut problem = node_finder.search(*start, *end);
-                let res = astar(&mut problem);
-                res
-              } 
-            ).min_by(|vdeq| vdeq.len())
-          }
-        ).min_by(|vdeq| vdeq.len()).unwrap();
-        for point in result.iter() {
-          blocked_positions.push(*point);
-        }
-        let new_starts =
-          new_connection_points(
-            start_conns.to_owned(),
-            *result.front().unwrap(),
-            find_block_display(&conn.start[..], blocks).unwrap());
-        let new_ends =
-          new_connection_points(
-            end_conns.to_owned(),
-            *result.back().unwrap(),
-            find_block_display(&conn.end[..], blocks).unwrap());
-        (result, new_starts, new_ends)
-      };
-  
-      {
-        *open_connectors.get_mut(&conn.start[..]).unwrap() = new_starts;
-        *open_connectors.get_mut(&conn.end[..]).unwrap() = new_ends;
-      }
-
-      paths.push(conn_display_with_path(conn, result));
-    }
-
-    paths
+    self.recursive_connection_determination(
+      connections,
+      blocks,
+      constraint,
+      vec![]).unwrap_or_else(|| vec![])
   }
 }
 
-fn new_connection_points(mut conns:Vec<Position>, used:Position, block: &BlockDisplay) -> Vec<Position> {
+impl BacktrackingDownwardLayout {
+  fn recursive_connection_determination<'a>(
+    &self,
+    connections:&[Connection],
+    blocks: &[(&'a BlockSpec, BlockDisplay)],
+    constraint: &LayoutConstraint,
+    current_paths: Vec<Position>)
+      -> Option<Vec<ConnectionDisplay>> {
+    let min_box_distance = constraint.connection.box_distance;  
+
+    if connections.len() == 0 {
+      return Some(vec![]);
+    }
+
+    let conn = &connections[0];
+
+    let start_block =
+      match find_block_display(&conn.start, blocks) {
+        Some(x) => x,
+        None => {
+          return
+            self.recursive_connection_determination(
+              &connections[1..],
+              blocks,
+              constraint,
+              current_paths);
+        }
+      };
+    let end_block =
+      match find_block_display(&conn.end, blocks) {
+        Some(x) => x,
+        None => {
+          return 
+            self.recursive_connection_determination(
+              &connections[1..],
+              blocks,
+              constraint,
+              current_paths);
+        }
+      };
+
+    let filtered_blocks:(Vec<_>,Vec<_>) =
+      blocks.iter().partition(|b| {
+        let name = b.0.get_name();
+        name != conn.start && name != conn.end
+      });
+    
+    let start_connections = find_connection_points(start_block, &current_paths);
+    let end_connections = find_connection_points(end_block, &current_paths);
+    let mut iter_run = 0;
+
+    loop {
+      println!("Loop: {:?} connections", connections.len());
+      
+      let mut removing_start = true;
+      let mut rem_indicator = iter_run;
+      let mut cur_starts = start_connections.clone();
+      let mut cur_ends = end_connections.clone();
+
+      while rem_indicator > 0 {
+        let remove_from = if removing_start {&mut cur_starts} else {&mut cur_ends};
+        let len = remove_from.len();
+        remove_from.remove(rem_indicator % len);
+        rem_indicator /= len;
+        removing_start = !removing_start;
+      }
+
+      iter_run += 1;
+
+      if cur_starts.len() == 0 || cur_ends.len() == 0 {
+        return None;
+      }
+
+      let result = cur_starts.iter().filter_map(
+        |start| {
+          cur_ends.iter().filter_map(
+            |end| {
+              let mut node_finder =
+                DisplayNodeFinder{
+                  blocks: filtered_blocks.0.iter().map(|x| &x.1).collect(),
+                  non_checked_blocks: filtered_blocks.1.iter().map(|x| &x.1).collect(),
+                  constraint:constraint,
+                  end_point: *end,
+                  blocked: current_paths.as_slice()};
+              let mut problem = node_finder.search(*start, *end);
+              let res = astar(&mut problem);
+              res
+            } 
+          ).min_by(|vdeq| vdeq.len())
+        }
+      ).min_by(|vdeq| vdeq.len());
+      
+      match result {
+        Some(path) => {
+          let mut new_paths = current_paths.clone();
+          for p in path.iter() {
+            new_paths.push(*p);
+          }
+          let lower_result =
+            self.recursive_connection_determination(
+              &connections[1..],
+              blocks,
+              constraint,
+              new_paths);
+          match lower_result {
+            Some(mut vals) => {
+              vals.push(conn_display_with_path(conn, path));
+              return Some(vals)
+            }
+            None => {
+              println!("No Lower result.  {:?} connections, {:?} starts, {:?} ends",
+                        connections.len(), cur_starts.len(), cur_ends.len());
+              rem_indicator += 1;}
+          }
+        }
+        None => return None
+      }
+    }
+  }
+}
+
+fn find_connection_points(block: &BlockDisplay, paths:&[Position]) -> Vec<Position> {
+  let mut core = core_connectors(block);
+
+  let mut found = true;
+
+  while found {
+    found = false;
+    core =
+      core.into_iter().map(
+      |p|
+        if paths.contains(&p) {
+          found = true;
+          new_connection_points(p, block).into_iter().filter(|new_p| !paths.contains(new_p)).collect()
+        } else {
+          vec![p]
+        }
+    ).flat_map(|v| v).collect();
+  }
+  core
+}
+
+fn new_connection_points(used:Position, block: &BlockDisplay) -> Vec<Position> {
+  let mut conns = vec![];
   if used.x == block.pos.x || used.x == block.pos.x + block.size.width - 1 {
     let change = max(block.size.height/4, 2);
     if used.y - change > block.pos.y {
@@ -178,6 +237,7 @@ fn find_block_display<'a>(
 
 fn conn_display_with_path(conn: &Connection, mut path: VecDeque<Position>) -> ConnectionDisplay {
   let mut last_change:Option<(i8, i8)> = None;
+  let mut first_change:Option<(i8, i8)> = None;
   let mut part_vec:Vec<ConnectionPart> = vec![];
 
   let mut part_start:Option<Position> = None;
@@ -224,6 +284,9 @@ fn conn_display_with_path(conn: &Connection, mut path: VecDeque<Position>) -> Co
     }
 
     last_change = Some(new_change);
+    if first_change.is_none() {
+      first_change = Some(new_change);
+    }
     last_point = Some(b);
   }
 
@@ -236,12 +299,44 @@ fn conn_display_with_path(conn: &Connection, mut path: VecDeque<Position>) -> Co
         internal_character: part_char});
   }
 
+  let (total_start,total_end) =
+    total_chars(
+      first_change.map(|fc| (-fc.0, -fc.1)),
+      last_change,
+      conn.ty);
+
   ConnectionDisplay{
     parts:part_vec,
     color:conn.color,
     part_end_char: '+',
-    total_start_char: '#',
-    total_end_char: '#'
+    total_start_char: total_start,
+    total_end_char: total_end
+  }
+}
+
+fn total_chars(first_change:Option<(i8, i8)>, last_change:Option<(i8,i8)>, ty:ConnectionType) -> (char,char) {
+  if ty == ConnectionType::Generic {
+    ('#', '#')
+  } else if ty == ConnectionType::Singular {
+    ('#', incoming_for_change(last_change))
+  } else {
+    (incoming_for_change(first_change), incoming_for_change(last_change))
+  }
+}
+
+fn incoming_for_change(change:Option<(i8, i8)>) -> char {
+  if let Some((x,y)) = change {
+    if x == -1 {
+      '<'
+    } else if x == 1 {
+      '>'
+    } else if y == -1 {
+      '^'
+    } else {
+      'v'
+    }
+  } else {
+    '#'
   }
 }
 
