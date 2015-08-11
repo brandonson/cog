@@ -18,7 +18,7 @@ use parser::driver::ParserDriver;
 use std::error::Error;
 use layout::constraint::*;
 use layout::{LayoutManager};
-use layout::backtracking::BacktrackingDownwardLayout;
+use layout::downward_cross::CrossingDownwardLayout;
 use layout::display::Position;
 use data::{Connection, DataSpec, BlockSpec};
 
@@ -94,7 +94,7 @@ fn main() {
         _   => None
       }).collect();
 
-  let layout_manager = BacktrackingDownwardLayout{screen_width:50, screen_height: 50};
+  let layout_manager = CrossingDownwardLayout{screen_width:50, screen_height: 50};
 
   let layout = layout_manager.determine_block_vector_layout(blocks.as_slice(), &full_constraint.block);
 

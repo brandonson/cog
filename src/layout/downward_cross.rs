@@ -1,41 +1,23 @@
-pub mod constraint;
-pub mod display;
-pub mod backtracking;
-pub mod memoizer;
-pub mod downward_optimized;
-pub mod downward_cross;
-pub mod path_conversion;
-
-use self::constraint::{LayoutConstraint,BlockConstraint, ConnectionConstraint};
-use self::display::{Position, ConnectionDisplay, BlockDisplay, ConnectionPart};
-use data::{Connection, BlockSpec};
+use super::constraint::{LayoutConstraint,BlockConstraint, ConnectionConstraint};
+use super::display::{Position, ConnectionDisplay, BlockDisplay, ConnectionPart};
+use data::{Connection, BlockSpec, ConnectionType};
 use std::collections::{VecDeque,HashMap};
 use std::cmp::max;
 
 use astar::ReusableSearchProblem;
 use astar::astar;
 
-pub trait LayoutManager{
-  fn determine_block_vector_layout<'a>(
-    &self,
-    blocks: &'a [BlockSpec],
-    constraint: &BlockConstraint)
-      -> Vec<(&'a BlockSpec, BlockDisplay)>;
+use super::path_conversion::conn_display_with_path;
 
-  fn determine_connection_layout(
-    &self,
-    connections:&[Connection],
-    blocks: &[(&BlockSpec, BlockDisplay)],
-    constraint:&LayoutConstraint)
-      -> Vec<ConnectionDisplay> ;
-}
+use super::LayoutManager;
 
-pub struct DownwardLayout {
+
+pub struct CrossingDownwardLayout {
   pub screen_width: u32,
   pub screen_height: u32
 }
 
-impl LayoutManager for DownwardLayout {
+impl LayoutManager for CrossingDownwardLayout {
   fn determine_block_vector_layout<'a>(
     &self,
     blocks:&'a [BlockSpec],
@@ -80,7 +62,7 @@ impl LayoutManager for DownwardLayout {
       open_connectors.insert(block.get_name(), core_connectors(block_disp));
     }
 
-    let mut blocked_positions = vec![];
+    let mut blocked_positions:Vec<Position> = vec![];
 
     let mut paths:Vec<ConnectionDisplay> = Vec::with_capacity(connections.len());
 
@@ -93,8 +75,10 @@ impl LayoutManager for DownwardLayout {
           break;
         }
   
-        let start_conns = start_conns_opt.unwrap();
-        let end_conns = end_conns_opt.unwrap();
+        let start_conns:Vec<Position> =
+          start_conns_opt.unwrap().into_iter().filter(|p| !blocked_positions.contains(p)).map(|x| *x).collect();
+        let end_conns:Vec<Position> =
+          end_conns_opt.unwrap().into_iter().filter(|p|!blocked_positions.contains(p)).map(|x| *x).collect();
         let filtered_blocks:(Vec<_>,Vec<_>) =
           blocks.iter().partition(|b| {
             let name = b.0.get_name();
@@ -113,7 +97,9 @@ impl LayoutManager for DownwardLayout {
                     end_point: *end,
                     blocked: blocked_positions.as_slice()};
                 let mut problem = node_finder.search(*start, *end);
+                println!("Solving");
                 let res = astar(&mut problem);
+                println!("Solution? {:?}", res.is_some());
                 res
               } 
             ).min_by(|vdeq| vdeq.len())
@@ -180,75 +166,6 @@ fn find_block_display<'a>(
   None
 }
 
-fn conn_display_with_path(conn: &Connection, mut path: VecDeque<Position>) -> ConnectionDisplay {
-  let mut last_change:Option<(i8, i8)> = None;
-  let mut part_vec:Vec<ConnectionPart> = vec![];
-
-  let mut part_start:Option<Position> = None;
-  let mut last_point:Option<Position> = None;
-
-  for slice in path.into_iter().collect::<Vec<_>>().windows(2) {
-    let (a,b) = (slice[0], slice[1]);
-    if (a.x != b.x) && (a.y != b.y) {
-      panic!("How'd we get a path that moves diagonally!");
-    }
-
-    if part_start.is_none() {
-      part_start = Some(a);
-    }
-    let new_change =
-      if a.x == b.x {
-        if a.y > b.y {
-          assert!(a.y - b.y == 1);
-          (0, -1)
-        } else {
-          assert!(b.y - a.y == 1);
-          (0, 1)
-        }
-      } else {
-        if a.x > b.x {
-          assert!(a.x - b.x == 1);
-          (-1, 0)
-        } else {
-          assert!(b.x - a.x == 1);
-          (1, 0)
-        }
-      };
-
-    if let Some(old_change) = last_change {
-      if new_change != old_change {
-        let part_char = if old_change.0 == 0 {'|'} else {'-'};
-        part_vec.push(
-          ConnectionPart{
-            start: part_start.unwrap(),
-            end: a,
-            internal_character: part_char});
-        part_start = Some(a);
-      }
-    }
-
-    last_change = Some(new_change);
-    last_point = Some(b);
-  }
-
-  if part_start.is_some() && last_point.is_some() && last_change.is_some(){
-    let part_char = if last_change.unwrap().0 == 0 {'|'} else {'-'};
-    part_vec.push(
-      ConnectionPart{
-        start: part_start.unwrap(),
-        end: last_point.unwrap(),
-        internal_character: part_char});
-  }
-
-  ConnectionDisplay{
-    parts:part_vec,
-    color:conn.color,
-    part_end_char: '+',
-    total_start_char: '#',
-    total_end_char: '#'
-  }
-}
-
 struct DisplayNodeFinder<'a, 'b, 'c> {
   blocks: Vec<&'a BlockDisplay>,
   non_checked_blocks: Vec<&'a BlockDisplay>,
@@ -284,7 +201,7 @@ impl<'a, 'b, 'c> ReusableSearchProblem for DisplayNodeFinder<'a, 'b, 'c> {
 
     positions.into_iter()
       .filter(|p| self.is_valid_pos(*p))
-      .map(|p| (p, 1)).collect::<Vec<_>>().into_iter()
+      .map(|p| (p, self.cost(p))).collect::<Vec<_>>().into_iter()
   }
 }
 
@@ -292,9 +209,6 @@ impl<'a, 'b, 'c> DisplayNodeFinder<'a, 'b, 'c> {
   fn is_valid_pos(&self, pos:Position) -> bool {
     if pos == self.end_point {
       return true;
-    }
-    if self.blocked.contains(&pos) {
-      return false;
     }
     let is_outside_distance = 
       self.blocks.iter().all(
@@ -306,6 +220,10 @@ impl<'a, 'b, 'c> DisplayNodeFinder<'a, 'b, 'c> {
       );
     
     is_outside_distance && is_not_inside
+  }
+
+  fn cost(&self, pos:Position) -> u32 {
+    if self.blocked.contains(&pos) {50} else {1}
   }
 }
 

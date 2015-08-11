@@ -7,17 +7,15 @@ use std::cmp::max;
 use astar::ReusableSearchProblem;
 use astar::astar;
 
-use super::path_conversion::conn_display_with_path;
-
 use super::LayoutManager;
+use super::memoizer::{PathCreator, PathMemoizer};
 
-
-pub struct BacktrackingDownwardLayout {
+pub struct MemoizingDownwardLayout {
   pub screen_width: u32,
   pub screen_height: u32
 }
 
-impl LayoutManager for BacktrackingDownwardLayout {
+impl LayoutManager for MemoizingDownwardLayout {
   fn determine_block_vector_layout<'a>(
     &self,
     blocks:&'a [BlockSpec],
@@ -58,17 +56,19 @@ impl LayoutManager for BacktrackingDownwardLayout {
       connections,
       blocks,
       constraint,
-      vec![]).unwrap_or_else(|| vec![])
+      vec![],
+      &mut PathMemoizer::new()).unwrap_or_else(|| vec![])
   }
 }
 
-impl BacktrackingDownwardLayout {
+impl MemoizingDownwardLayout {
   fn recursive_connection_determination<'a>(
     &self,
     connections:&[Connection],
     blocks: &[(&'a BlockSpec, BlockDisplay)],
     constraint: &LayoutConstraint,
-    current_paths: Vec<Position>)
+    current_paths: Vec<Position>,
+    memoizer: &mut PathMemoizer)
       -> Option<Vec<ConnectionDisplay>> {
     let min_box_distance = constraint.connection.box_distance;  
 
@@ -87,7 +87,8 @@ impl BacktrackingDownwardLayout {
               &connections[1..],
               blocks,
               constraint,
-              current_paths);
+              current_paths,
+              memoizer);
         }
       };
     let end_block =
@@ -99,7 +100,8 @@ impl BacktrackingDownwardLayout {
               &connections[1..],
               blocks,
               constraint,
-              current_paths);
+              current_paths,
+              memoizer);
         }
       };
 
@@ -108,7 +110,15 @@ impl BacktrackingDownwardLayout {
         let name = b.0.get_name();
         name != conn.start && name != conn.end
       });
-    
+
+    let mut node_finder =
+      DisplayNodeFinder{
+        blocks: filtered_blocks.0.iter().map(|x| &x.1).collect(),
+        non_checked_blocks: filtered_blocks.1.iter().map(|x| &x.1).collect(),
+        constraint:constraint,
+        end_point: Position{x: 0, y:0}, //default, gets overwritten
+        blocked: current_paths.as_slice()};
+
     let start_connections = find_connection_points(start_block, &current_paths);
     let end_connections = find_connection_points(end_block, &current_paths);
     let mut iter_run = 0;
@@ -135,24 +145,21 @@ impl BacktrackingDownwardLayout {
         return None;
       }
 
-      let result = cur_starts.iter().filter_map(
-        |start| {
-          cur_ends.iter().filter_map(
-            |end| {
-              let mut node_finder =
-                DisplayNodeFinder{
-                  blocks: filtered_blocks.0.iter().map(|x| &x.1).collect(),
-                  non_checked_blocks: filtered_blocks.1.iter().map(|x| &x.1).collect(),
-                  constraint:constraint,
-                  end_point: *end,
-                  blocked: current_paths.as_slice()};
-              let mut problem = node_finder.search(*start, *end);
-              let res = astar(&mut problem);
-              res
-            } 
-          ).min_by(|vdeq| vdeq.len())
+      let all_start_end_combos = {
+        let mut vec = vec![];
+        for start in cur_starts.iter() {
+          for end in cur_ends.iter() {
+            vec.push((*start, *end))
+          }
         }
-      ).min_by(|vdeq| vdeq.len());
+        vec
+      };
+
+      let result =  {
+        memoizer.get_shortest_option(
+          all_start_end_combos,
+          &mut node_finder).map(|x| x.clone())
+      };
       
       match result {
         Some(path) => {
@@ -165,10 +172,11 @@ impl BacktrackingDownwardLayout {
               &connections[1..],
               blocks,
               constraint,
-              new_paths);
+              new_paths,
+              memoizer);
           match lower_result {
             Some(mut vals) => {
-              vals.push(conn_display_with_path(conn, path));
+              vals.push(conn_display_with_path(conn, &path));
               return Some(vals)
             }
             None => {
@@ -238,12 +246,131 @@ fn find_block_display<'a>(
   None
 }
 
+fn conn_display_with_path(conn: &Connection, path: &VecDeque<Position>) -> ConnectionDisplay {
+  let mut last_change:Option<(i8, i8)> = None;
+  let mut first_change:Option<(i8, i8)> = None;
+  let mut part_vec:Vec<ConnectionPart> = vec![];
+
+  let mut part_start:Option<Position> = None;
+  let mut last_point:Option<Position> = None;
+
+  for slice in path.into_iter().collect::<Vec<_>>().windows(2) {
+    let (a,b) = (slice[0], slice[1]);
+    if (a.x != b.x) && (a.y != b.y) {
+      panic!("How'd we get a path that moves diagonally!");
+    }
+
+    if part_start.is_none() {
+      part_start = Some(*a);
+    }
+    let new_change =
+      if a.x == b.x {
+        if a.y > b.y {
+          assert!(a.y - b.y == 1);
+          (0, -1)
+        } else {
+          assert!(b.y - a.y == 1);
+          (0, 1)
+        }
+      } else {
+        if a.x > b.x {
+          assert!(a.x - b.x == 1);
+          (-1, 0)
+        } else {
+          assert!(b.x - a.x == 1);
+          (1, 0)
+        }
+      };
+
+    if let Some(old_change) = last_change {
+      if new_change != old_change {
+        let part_char = if old_change.0 == 0 {'|'} else {'-'};
+        part_vec.push(
+          ConnectionPart{
+            start: part_start.unwrap(),
+            end: *a,
+            internal_character: part_char});
+        part_start = Some(*a);
+      }
+    }
+
+    last_change = Some(new_change);
+    if first_change.is_none() {
+      first_change = Some(new_change);
+    }
+    last_point = Some(*b);
+  }
+
+  if part_start.is_some() && last_point.is_some() && last_change.is_some(){
+    let part_char = if last_change.unwrap().0 == 0 {'|'} else {'-'};
+    part_vec.push(
+      ConnectionPart{
+        start: part_start.unwrap(),
+        end: last_point.unwrap(),
+        internal_character: part_char});
+  }
+
+  let (total_start,total_end) =
+    total_chars(
+      first_change.map(|fc| (-fc.0, -fc.1)),
+      last_change,
+      conn.ty);
+
+  ConnectionDisplay{
+    parts:part_vec,
+    color:conn.color,
+    part_end_char: '+',
+    total_start_char: total_start,
+    total_end_char: total_end
+  }
+}
+
+fn total_chars(first_change:Option<(i8, i8)>, last_change:Option<(i8,i8)>, ty:ConnectionType) -> (char,char) {
+  if ty == ConnectionType::Generic {
+    ('#', '#')
+  } else if ty == ConnectionType::Singular {
+    ('#', incoming_for_change(last_change))
+  } else {
+    (incoming_for_change(first_change), incoming_for_change(last_change))
+  }
+}
+
+fn incoming_for_change(change:Option<(i8, i8)>) -> char {
+  if let Some((x,y)) = change {
+    if x == -1 {
+      '<'
+    } else if x == 1 {
+      '>'
+    } else if y == -1 {
+      '^'
+    } else {
+      'v'
+    }
+  } else {
+    '#'
+  }
+}
+
 struct DisplayNodeFinder<'a, 'b, 'c> {
   blocks: Vec<&'a BlockDisplay>,
   non_checked_blocks: Vec<&'a BlockDisplay>,
   constraint: &'b LayoutConstraint,
   end_point: Position,
   blocked: &'c [Position]
+}
+
+impl<'a, 'b, 'c> PathCreator for DisplayNodeFinder<'a, 'b, 'c> {
+  fn is_valid_path(&self, path: &VecDeque<Position>) -> bool {
+    //Don't bother checking the blocks, they won't change
+    path.iter().all(|p| !self.blocked.contains(p))
+  }
+
+  fn calculate_new_path(&mut self, start:Position, end:Position)
+    -> Option<VecDeque<Position>> {
+      self.end_point = end;
+      let mut problem = self.search(start, end);
+      astar(&mut problem)
+  }
 }
 
 impl<'a, 'b, 'c> ReusableSearchProblem for DisplayNodeFinder<'a, 'b, 'c> {

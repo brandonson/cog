@@ -1,0 +1,13 @@
+box text ixia1 color green
+  Ixia I
+
+box text ixia2 color blue
+  Ixia II
+
+box text ssr color yellow
+  Smart Services Router
+
+dual connection ixia1 ixia2 color white
+
+singular connection ssr ixia1 color magenta
+singular connection ixia2 ssr color magenta
