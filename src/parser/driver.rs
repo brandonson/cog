@@ -5,24 +5,26 @@ use std::fs::File;
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use nom::{Err, IResult};
+use nom::IResult;
+use nom::Err as NomErr;
 
 use super::nodes;
 
 #[derive(Debug)]
 pub enum ParserError{
   NomIncomplete,
-  NomErr(u32, String),
+  NomErr(::nom::ErrorKind, String),
   NotAllParsed,
   IoErr(io::Error)
 }
 
-fn construct_nom_err(uval: u32) -> ParserError {
-  ParserError::NomErr(uval, format!("nom parsing failed due to error {}", uval))
+fn construct_nom_err(ek: ::nom::ErrorKind) -> ParserError {
+  let msg = format!("nom parsing failed due to error {:?}", ek);
+  ParserError::NomErr(ek, msg)
 }
 
-impl<'a> From<Err<'a>> for ParserError {
-  fn from(e: Err<'a>) -> ParserError {
+impl<'a> From<NomErr<&'a [u8]>> for ParserError {
+  fn from(e: NomErr<&'a [u8]>) -> ParserError {
     use nom::Err::*;
 
     match e {
@@ -92,10 +94,10 @@ impl ParserDriver for FileDriver {
 
     let nom_result = nodes::full_graph_spec(&buf);
     match nom_result {
-      IResult::Done(rem, _) if rem.len() > 0 => Err(NotAllParsed),
+      IResult::Done(rem, _) if rem.len() > 0 => {println!("{:?}", String::from_utf8(rem.to_owned())); Err(NotAllParsed)}
       IResult::Done(_, out) => Ok(out),
       IResult::Incomplete(_) => Err(NomIncomplete),
-      IResult::Error(err) => Err(From::from(err)),
+      IResult::Error(err) => Err(ParserError::from(err)),
     }
   }
 }

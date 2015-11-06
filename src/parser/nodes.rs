@@ -23,20 +23,25 @@ named! (box_spec <&[u8], BlockSpec>,
   )
 );
 
+named! (color_select <&[u8], Coloring>,
+    alt!(
+        tag!("red") => { |_| Coloring::Red } |
+        tag!("cyan") => { |_| Coloring::Cyan } |
+        tag!("blue") => { |_| Coloring::Blue } |
+        tag!("black") => { |_| Coloring::Black } |
+        tag!("green") => { |_| Coloring::Green } |
+        tag!("white") => { |_| Coloring::White } |
+        tag!("yellow") => { |_| Coloring::Yellow } |
+        tag!("magenta") => { |_| Coloring::Magenta } |
+        tag!("default") => { |_| Coloring::Default }
+    )
+);
+
 named! (coloring_spec <&[u8], Coloring>,
   chain!(
-    tag!("color") ~
-    space         ~
-    c: alt!(tag!("default") => { |_| Coloring::Default } |
-            tag!("black") => { |_| Coloring::Black } |
-            tag!("red") => { |_| Coloring::Red } |
-            tag!("green") => { |_| Coloring::Green } |
-            tag!("yellow") => { |_| Coloring::Yellow } |
-            tag!("blue") => { |_| Coloring::Blue } |
-            tag!("magenta") => { |_| Coloring::Magenta } |
-            tag!("cyan") => { |_| Coloring::Cyan } |
-            tag!("white") => { |_| Coloring::White }
-        ),
+    dbg! (tag!("color")) ~
+    dbg! (space)         ~
+    c: dbg_dmp!(color_select),
     ||c));
 
 named! (defaulted_color <&[u8], Coloring>,
@@ -79,8 +84,12 @@ named! (data_spec <&[u8], DataSpec>,
 
 pub type DataVec = Vec<DataSpec>;
 
+named! (eol_space_spec < &[u8], Vec<()> >,
+    many1!(chain!(space? ~ line_ending, || ())));
+
 named! (pub full_graph_spec <&[u8], DataVec>,
-  separated_list!(many1!(chain!(space? ~ line_ending, || ())), data_spec));
+  separated_list!(eol_space_spec, data_spec)
+);
 
 #[cfg(test)]
 mod test{
@@ -122,5 +131,17 @@ mod test{
                  end:"bar".to_owned(),
                  color: Coloring::Default}));
 
+  }
+
+  #[test]
+  fn color_spec() {
+    let input = &b" color red"[..];
+    let col_in = &b"red"[..];
+    assert_eq!(
+        super::color_select(col_in),
+        Done(&b""[..], Coloring::Red));
+    assert_eq!(
+        super::defaulted_color(input),
+        Done(&b""[..],Coloring::Red));
   }
 }

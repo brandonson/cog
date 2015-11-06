@@ -1,6 +1,6 @@
 #![feature(collections)]
 #![feature(plugin)]
-#![feature(core)]
+#![feature(iter_arith)]
 #![feature(convert)]
 #![plugin(docopt_macros)]
 
@@ -50,8 +50,12 @@ fn main() {
     max_width_per_height: 10,
     inter_block_distance: 5
   };
+  let spec_ok = match specs {
+    Ok(res) => res,
+    Err(e) => {println!("{:?}", e); return;}
+  };
 
-  let blocks:Vec<BlockSpec> = specs.unwrap().into_iter().filter_map(
+  let blocks:Vec<BlockSpec> = spec_ok.into_iter().filter_map(
     |ds| match ds {
       DataSpec::BlockDataSpec(block) => Some(block),
       _ => None
