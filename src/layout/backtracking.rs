@@ -114,8 +114,6 @@ impl BacktrackingDownwardLayout {
     let mut iter_run = 0;
 
     loop {
-      println!("Loop: {:?} connections", connections.len());
-      
       let mut removing_start = true;
       let mut rem_indicator = iter_run;
       let mut cur_starts = start_connections.clone();

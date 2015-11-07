@@ -97,9 +97,7 @@ impl LayoutManager for CrossingDownwardLayout {
                     end_point: *end,
                     blocked: blocked_positions.as_slice()};
                 let mut problem = node_finder.search(*start, *end);
-                println!("Solving");
                 let res = astar(&mut problem);
-                println!("Solution? {:?}", res.is_some());
                 res
               } 
             ).min_by(|vdeq| vdeq.len())

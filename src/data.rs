@@ -66,14 +66,12 @@ impl Coloring {
 
   pub fn color_on(&self) {
     for c in self.ncurses_color() {
-      println!("Color {:?} on", c);
       attron(COLOR_PAIR(c));
     }
   }
 
   pub fn color_off(&self) {
     for c in self.ncurses_color() {
-      println!("Color {:?} off", c);
       attroff(COLOR_PAIR(c));
     }
   }
