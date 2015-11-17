@@ -41,6 +41,7 @@ pub enum BlockCorner {
   BottomRight
 }
 
+///Iterator through the corners of a block.
 pub struct BlockCornerIter {
   top_left: Position,
   block_size: Size,

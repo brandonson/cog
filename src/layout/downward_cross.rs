@@ -28,11 +28,11 @@ impl LayoutManager for CrossingDownwardLayout {
         |bspec| {
           (bspec, BlockDisplay::create_unpositioned_from_spec(bspec, constraint))
         }).collect();
-    
+
     let total_box_y:u32 = displays.iter().map(|b_disp| b_disp.1.size.height).sum();
 
     // Try for spacing after each block except the last one
-    let y_spacing = constraint.inter_block_distance * (displays.len() - 1) as u32;
+    let y_spacing = constraint.inter_block_distance;
     let total_y = total_box_y + y_spacing;
 
     let mut last_end_y = 0;
@@ -41,7 +41,7 @@ impl LayoutManager for CrossingDownwardLayout {
       let block_display = &mut block_display_tup.1;
       block_display.pos.x = self.screen_width/2 - block_display.size.width/2;
       block_display.pos.y = last_end_y + block_display.size.height + y_spacing;
-      
+
       last_end_y = block_display.pos.y;
     }
 
@@ -70,11 +70,11 @@ impl LayoutManager for CrossingDownwardLayout {
       let (result,new_starts, new_ends) = {
         let start_conns_opt = open_connectors.get(&conn.start[..]);
         let end_conns_opt = open_connectors.get(&conn.end[..]);
-  
+
         if start_conns_opt.is_none() || end_conns_opt.is_none() {
           break;
         }
-  
+
         let start_conns:Vec<Position> =
           start_conns_opt.unwrap().into_iter().filter(|p| !blocked_positions.contains(p)).map(|x| *x).collect();
         let end_conns:Vec<Position> =
@@ -84,7 +84,7 @@ impl LayoutManager for CrossingDownwardLayout {
             let name = b.0.get_name();
             name != conn.start && name != conn.end
           });
-  
+
         let result = start_conns.iter().filter_map(
           |start| {
             end_conns.iter().filter_map(
@@ -99,7 +99,7 @@ impl LayoutManager for CrossingDownwardLayout {
                 let mut problem = node_finder.search(*start, *end);
                 let res = astar(&mut problem);
                 res
-              } 
+              }
             ).min_by(|vdeq| vdeq.len())
           }
         ).min_by(|vdeq| vdeq.len()).unwrap();
@@ -118,7 +118,7 @@ impl LayoutManager for CrossingDownwardLayout {
             find_block_display(&conn.end[..], blocks).unwrap());
         (result, new_starts, new_ends)
       };
-  
+
       {
         *open_connectors.get_mut(&conn.start[..]).unwrap() = new_starts;
         *open_connectors.get_mut(&conn.end[..]).unwrap() = new_ends;
@@ -192,7 +192,7 @@ impl<'a, 'b, 'c> ReusableSearchProblem for DisplayNodeFinder<'a, 'b, 'c> {
     }
     if node.x < self.constraint.max_width {
       positions.push(Position{x:node.x+1, y: node.y});
-    } 
+    }
     if node.y < self.constraint.max_height {
       positions.push(Position{x:node.x, y: node.y + 1});
     }
@@ -208,7 +208,7 @@ impl<'a, 'b, 'c> DisplayNodeFinder<'a, 'b, 'c> {
     if pos == self.end_point {
       return true;
     }
-    let is_outside_distance = 
+    let is_outside_distance =
       self.blocks.iter().all(
         |b| b.distance_to_position(pos) >= self.constraint.connection.box_distance
       );
@@ -216,7 +216,7 @@ impl<'a, 'b, 'c> DisplayNodeFinder<'a, 'b, 'c> {
       self.non_checked_blocks.iter().all(
         |b| b.distance_to_position(pos) > 0
       );
-    
+
     is_outside_distance && is_not_inside
   }
 

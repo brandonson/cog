@@ -51,7 +51,7 @@ fn main() {
     min_limited_width: 40,
     max_height_per_width: 1,
     max_width_per_height: 10,
-    inter_block_distance: 2
+    inter_block_distance: 5
   };
   let spec_ok = match specs {
     Ok(res) => res,
@@ -62,13 +62,13 @@ fn main() {
     ConnectionConstraint{
       min_length: 10,
       max_length: 1000,
-      box_distance: 5};
+      box_distance: 3};
 
-  let full_constraint = 
+  let full_constraint =
     LayoutConstraint {
       connection: conn_constraint,
       block: constraint,
-      max_width: 100,
+      max_width: 150,
       max_height: 100
     };
 
@@ -76,7 +76,7 @@ fn main() {
     |ds| if let &DataSpec::BlockDataSpec(_) = ds {
       true
     } else {
-      false 
+      false
     }
   );
 

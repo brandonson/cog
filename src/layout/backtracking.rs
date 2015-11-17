@@ -28,7 +28,7 @@ impl LayoutManager for BacktrackingDownwardLayout {
         |bspec| {
           (bspec, BlockDisplay::create_unpositioned_from_spec(bspec, constraint))
         }).collect();
-    
+
     let total_box_y:u32 = displays.iter().map(|b_disp| b_disp.1.size.height).sum();
 
     // Try for spacing after each block except the last one
@@ -41,7 +41,7 @@ impl LayoutManager for BacktrackingDownwardLayout {
       let block_display = &mut block_display_tup.1;
       block_display.pos.x = self.screen_width/2 - block_display.size.width/2;
       block_display.pos.y = last_end_y  + y_spacing;
-      
+
       last_end_y = block_display.pos.y;
     }
 
@@ -70,7 +70,7 @@ impl BacktrackingDownwardLayout {
     constraint: &LayoutConstraint,
     current_paths: Vec<Position>)
       -> Option<Vec<ConnectionDisplay>> {
-    let min_box_distance = constraint.connection.box_distance;  
+    let min_box_distance = constraint.connection.box_distance;
 
     if connections.len() == 0 {
       return Some(vec![]);
@@ -94,7 +94,7 @@ impl BacktrackingDownwardLayout {
       match find_block_display(&conn.end, blocks) {
         Some(x) => x,
         None => {
-          return 
+          return
             self.recursive_connection_determination(
               &connections[1..],
               blocks,
@@ -108,7 +108,7 @@ impl BacktrackingDownwardLayout {
         let name = b.0.get_name();
         name != conn.start && name != conn.end
       });
-    
+
     let start_connections = find_connection_points(start_block, &current_paths);
     let end_connections = find_connection_points(end_block, &current_paths);
     let mut iter_run = 0;
@@ -147,11 +147,11 @@ impl BacktrackingDownwardLayout {
               let mut problem = node_finder.search(*start, *end);
               let res = astar(&mut problem);
               res
-            } 
+            }
           ).min_by(|vdeq| vdeq.len())
         }
       ).min_by(|vdeq| vdeq.len());
-      
+
       match result {
         Some(path) => {
           let mut new_paths = current_paths.clone();
@@ -264,7 +264,7 @@ impl<'a, 'b, 'c> ReusableSearchProblem for DisplayNodeFinder<'a, 'b, 'c> {
     }
     if node.x < self.constraint.max_width {
       positions.push(Position{x:node.x+1, y: node.y});
-    } 
+    }
     if node.y < self.constraint.max_height {
       positions.push(Position{x:node.x, y: node.y + 1});
     }
@@ -283,7 +283,7 @@ impl<'a, 'b, 'c> DisplayNodeFinder<'a, 'b, 'c> {
     if self.blocked.contains(&pos) {
       return false;
     }
-    let is_outside_distance = 
+    let is_outside_distance =
       self.blocks.iter().all(
         |b| b.distance_to_position(pos) >= self.constraint.connection.box_distance
       );
@@ -291,7 +291,7 @@ impl<'a, 'b, 'c> DisplayNodeFinder<'a, 'b, 'c> {
       self.non_checked_blocks.iter().all(
         |b| b.distance_to_position(pos) > 0
       );
-    
+
     is_outside_distance && is_not_inside
   }
 }
