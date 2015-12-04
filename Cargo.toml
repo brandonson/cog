@@ -10,3 +10,6 @@ docopt_macros = "*"
 docopt = "*"
 rustc-serialize = "*"
 astar = "*"
+
+[dependencies.constrain]
+git = "https://github.com/brandonson/constrain"

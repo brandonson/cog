@@ -20,10 +20,6 @@ pub struct LayoutConstraint {
   pub max_height: u32,
 }
 
-trait Constraint<C> {
-  fn matches_constraint(&self, constrained:&C) -> bool;
-}
-
 impl BlockConstraint {
   pub fn max_width_for_height(&self, height:u32) -> u32 {
     ::std::cmp::max(height * self.max_width_per_height, self.min_limited_width)
