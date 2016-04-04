@@ -116,9 +116,9 @@ impl LayoutManager for DownwardLayout {
                 let res = astar(&mut problem);
                 res
               }
-            ).min_by(|vdeq| vdeq.len())
+            ).min_by_key(|vdeq| vdeq.len())
           }
-        ).min_by(|vdeq| vdeq.len()).unwrap();
+        ).min_by_key(|vdeq| vdeq.len()).unwrap();
         for point in result.iter() {
           blocked_positions.push(*point);
         }

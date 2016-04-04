@@ -148,9 +148,9 @@ impl BacktrackingDownwardLayout {
               let res = astar(&mut problem);
               res
             }
-          ).min_by(|vdeq| vdeq.len())
+          ).min_by_key(|vdeq| vdeq.len())
         }
-      ).min_by(|vdeq| vdeq.len());
+      ).min_by_key(|vdeq| vdeq.len());
 
       match result {
         Some(path) => {
