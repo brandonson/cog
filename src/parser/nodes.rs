@@ -54,7 +54,7 @@ named! (conn_type_spec <&[u8], ConnectionType>,
              tag!("singular") => { |_| ConnectionType::Singular } |
              tag!("dual") => { |_| ConnectionType::Dual }));
 
-named! (connection_spec<&[u8], Connection>,
+named! (connection_spec<&[u8], ConnectionSpec>,
   chain!(
     space?                                    ~
     ct: terminated!(conn_type_spec,space)?    ~
@@ -64,7 +64,7 @@ named! (connection_spec<&[u8], Connection>,
     space                                     ~
     second: ident_str                         ~
     color: defaulted_color,
-    || Connection{ty: ct.unwrap_or(ConnectionType::Generic),
+    || ConnectionSpec{ty: ct.unwrap_or(ConnectionType::Generic),
                   start: first.to_owned(),
                   end: second.to_owned(),
                   color:color}
@@ -113,19 +113,19 @@ mod test{
     let in2 = &b"dual connection foo bar color red"[..];
     let no_ty_spec = &b"connection foo bar\n"[..];
     assert_eq!(connection_spec(input),
-               Done(&b"\n"[..], Connection{
+               Done(&b"\n"[..], ConnectionSpec{
                  ty:ConnectionType::Generic,
                  start:"a".to_owned(),
                  end:"b".to_owned(),
                  color: Coloring::Default}));
     assert_eq!(connection_spec(in2),
-               Done(&b""[..], Connection{
+               Done(&b""[..], ConnectionSpec{
                  ty:ConnectionType::Dual,
                  start:"foo".to_owned(),
                  end:"bar".to_owned(),
                  color: Coloring::Red}));
     assert_eq!(connection_spec(no_ty_spec),
-               Done(&b"\n"[..], Connection{
+               Done(&b"\n"[..], ConnectionSpec{
                  ty:ConnectionType::Generic,
                  start:"foo".to_owned(),
                  end:"bar".to_owned(),

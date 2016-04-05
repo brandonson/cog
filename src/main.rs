@@ -17,15 +17,15 @@ extern crate nom;
 use parser::driver::ParserDriver;
 use std::error::Error;
 use layout::constraint::*;
-use layout::{LayoutManager};
-use layout::downward_cross::CrossingDownwardLayout;
 use layout::display::Position;
-use data::{Connection, DataSpec, BlockSpec};
+use layout::display::{BlockDisplay, ConnectionDisplay};
+use data::{ConnectionSpec, DataSpec, BlockSpec};
 
 mod parser;
 mod data;
 mod layout;
 mod render;
+mod graph;
 
 docopt!(Args derive Debug, "
 Usage: cog [options] <infile>
@@ -47,15 +47,16 @@ fn main() {
       }
     };
 
+  let spec_ok = match specs {
+    Ok(res) => res,
+    Err(e) => {println!("{:?}", e); return;}
+  };
+
   let constraint = BlockConstraint {
     min_limited_width: 40,
     max_height_per_width: 1,
     max_width_per_height: 10,
     inter_block_distance: 5
-  };
-  let spec_ok = match specs {
-    Ok(res) => res,
-    Err(e) => {println!("{:?}", e); return;}
   };
 
   let conn_constraint =
@@ -72,37 +73,9 @@ fn main() {
       max_height: 100
     };
 
-  let split_spec: (Vec<_>, Vec<_>) = spec_ok.into_iter().partition(
-    |ds| if let &DataSpec::BlockDataSpec(_) = ds {
-      true
-    } else {
-      false
-    }
-  );
+  let graph = graph::Graph::from_dataspec_vec(spec_ok);
 
-
-  let blocks:Vec<BlockSpec> = split_spec.0.into_iter().filter_map(
-    |ds| match ds {
-      DataSpec::BlockDataSpec(block) => Some(block),
-      _ => None
-    }).collect();
-
-  let connections:Vec<Connection> =
-    split_spec.1.into_iter().filter_map(
-      |ds| match ds {
-        DataSpec::ConnectionDataSpec(conn) => Some(conn),
-        _   => None
-      }).collect();
-
-  let layout_manager = CrossingDownwardLayout{screen_width:50, screen_height: 50};
-
-  let layout = layout_manager.determine_block_vector_layout(blocks.as_slice(), &full_constraint.block);
-
-  let connections =
-    layout_manager.determine_connection_layout(
-      connections.as_slice(),
-      layout.as_slice(),
-      &full_constraint);
+  let (layout, connections) = (vec![], vec![]);
 
   ncurses::setlocale(ncurses::LcCategory::all, "");
   ncurses::initscr();
@@ -113,7 +86,7 @@ fn main() {
   data::Coloring::init_default_color_pairs();
 
   for block in layout {
-    render::block::draw_block_display(Position{x:0, y:0}, block.1);
+    render::block::draw_block_display(Position{x:0, y:0}, block);
   }
   for connection in connections.iter() {
     render::connection::draw_connection(Position{x:0, y:0}, connection);

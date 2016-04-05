@@ -14,7 +14,7 @@ impl BlockSpec{
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Connection {
+pub struct ConnectionSpec {
   pub ty: ConnectionType,
   pub start: String,
   pub end: String,
@@ -44,7 +44,7 @@ pub enum Coloring {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum DataSpec {
   BlockDataSpec(BlockSpec),
-  ConnectionDataSpec(Connection)
+  ConnectionDataSpec(ConnectionSpec)
 }
 
 impl Coloring {
