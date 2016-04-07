@@ -1,6 +1,6 @@
 use data::*;
 use layout::constraint::*;
-use layout::display::*;
+use display::*;
 use std::cmp::{min,max};
 use std::mem;
 use std::ops::Add;

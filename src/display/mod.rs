@@ -1,5 +1,5 @@
 use data::*;
-use super::constraint::*;
+use layout::constraint::*;
 use std::cmp::{min,max};
 use std::mem;
 use std::ops::Add;

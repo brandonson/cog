@@ -1,7 +1,7 @@
 pub mod block;
 pub mod connection;
 use ncurses::{chtype, mvaddch};
-use layout::display::Position;
+use display::Position;
 
 pub trait CharPositioner{
   fn place_char(&self, character: char);

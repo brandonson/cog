@@ -17,8 +17,7 @@ extern crate nom;
 use parser::driver::ParserDriver;
 use std::error::Error;
 use layout::constraint::*;
-use layout::display::Position;
-use layout::display::{BlockDisplay, ConnectionDisplay};
+use display::{Position, BlockDisplay, ConnectionDisplay};
 use data::{ConnectionSpec, DataSpec, BlockSpec};
 
 mod parser;
@@ -26,6 +25,7 @@ mod data;
 mod layout;
 mod render;
 mod graph;
+mod display;
 
 docopt!(Args derive Debug, "
 Usage: cog [options] <infile>

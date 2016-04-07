@@ -1,11 +1,9 @@
 use data::{BlockSpec,ConnectionSpec, DataSpec};
-use layout::display::BlockDisplay;
 use std::rc::Rc;
 
 pub struct GraphBlock {
   pub spec: Rc<BlockSpec>,
   pub connection_count: u32,
-  pub display_data: Option<BlockDisplay>,
 }
 
 pub struct GraphConnection {
@@ -24,7 +22,6 @@ impl GraphBlock {
     GraphBlock {
       spec: spec,
       connection_count: 0,
-      display_data: None,
     }
   }
 }

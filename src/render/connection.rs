@@ -1,5 +1,4 @@
-use layout::display::ConnectionDisplay;
-use layout::display::Position;
+use display::{ConnectionDisplay, Position};
 use ncurses::mvprintw;
 use super::CharPositioner;
 

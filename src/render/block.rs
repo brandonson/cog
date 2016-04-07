@@ -1,5 +1,4 @@
-use layout::display::BlockDisplay;
-use layout::display::Position;
+use display::{BlockDisplay, Position};
 use ncurses::mvprintw;
 use super::CharPositioner;
 
