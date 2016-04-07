@@ -4,7 +4,7 @@ use std::cmp::{min,max};
 use std::mem;
 use std::ops::Add;
 
-pub mod boxed;
+mod block;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Position{

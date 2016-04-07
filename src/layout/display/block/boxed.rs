@@ -1,4 +1,11 @@
-fn create_unpositioned_from_box_spec(
+use data::*;
+use layout::constraint::*;
+use layout::display::*;
+use std::cmp::{min,max};
+use std::mem;
+use std::ops::Add;
+
+pub fn create_unpositioned_from_box_spec(
   color:Coloring,
   text: &str,
   constraint: &BlockConstraint)
@@ -59,7 +66,7 @@ fn naive_single_line_display(
       content_lines: vec![text.to_owned()],
       pos: Position{x: 0, y: 0},
       //height is 3 for line + text + line
-      size: Size{width: text.len() as u32 + 4, height: 3}});
+      size: Size{width: text.len() as u32 + 4, height: 3}})
   } else {
     None
   }
