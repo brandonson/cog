@@ -36,6 +36,8 @@ impl GraphConnection {
     } else if end.is_none() {
       Err(format!("Block {} does not exist", spec.end))
     } else {
+      start.unwrap().connection_count += 1;
+      end.unwrap().connection_count += 1;
       Ok(GraphConnection {
         spec: spec,
         start_block: start.unwrap().clone(),
@@ -65,6 +67,8 @@ fn graphize_data(spec:Vec<DataSpec>) -> Result<Graph, String>{
     let actual_conn = try!(conn);
     temp_conns.push(Rc::new(actual_conn));
   }
+
+  graph.connections = temp_conns;
 
   Ok(graph)
 }
