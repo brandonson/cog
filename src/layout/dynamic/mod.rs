@@ -20,7 +20,12 @@ impl Default for DynamicLayoutCreator {
 
 
 impl LayoutCreator for DynamicLayoutCreator {
-  fn build_layout(&self, g: Graph, constraints: Constraint) -> Layout {
-    self.lay_blocks(g.blocks.as_mut_slice(), constraints);
+  fn build_layout(&self, mut g: Graph, constraint: Constraint) -> Layout {
+    let mapped_blocks = self.lay_blocks(g.blocks.as_mut_slice(), &constraint);
+    //TODO finish
+    Layout {
+      blocks: vec![],
+      connections: vec![],
+    }
   }
 }

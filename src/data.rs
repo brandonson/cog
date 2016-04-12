@@ -1,6 +1,6 @@
 use ncurses::*;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum BlockSpec{
   Boxed(String, Coloring, String)
 }
@@ -13,7 +13,7 @@ impl BlockSpec{
   }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ConnectionSpec {
   pub ty: ConnectionType,
   pub start: String,
@@ -21,14 +21,14 @@ pub struct ConnectionSpec {
   pub color: Coloring
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum ConnectionType {
   Singular,
   Dual,
   Generic
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Coloring {
   Default,
   Black,
@@ -41,7 +41,7 @@ pub enum Coloring {
   Cyan
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum DataSpec {
   BlockDataSpec(BlockSpec),
   ConnectionDataSpec(ConnectionSpec)
