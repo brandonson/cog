@@ -33,13 +33,18 @@ impl DynamicBlockLayout for DynamicLayoutCreator {
     //Positions are unsigned, so just start far enough in that we can't go below zero evenly spacing.
     done_blocks.insert(first, Position::new(blocks.len() as u32, blocks.len() as u32));
 
-    build_block_position_mapping(blocks, &mut done_blocks);
+    build_block_position_mapping(blocks, &mut done_blocks, first);
     make_mapped_vectors_from_position_mapping(done_blocks)
   }
 }
 
-fn build_block_position_mapping<'gb>(blocks: &'gb [Rc<GraphBlock>], done_blocks:&mut HashMap<&'gb Rc<GraphBlock>, Position>) {
-  
+fn build_block_position_mapping<'gb>(
+  blocks: &'gb [Rc<GraphBlock>],
+  done_blocks:&mut HashMap<&'gb Rc<GraphBlock>, Position>,
+  build_from:&'gb Rc<GraphBlock>) {
+  for conn in build_from.connections.borrow().iter() {
+    let far = conn.get_far_end(build_from);
+  }
 }
 
 fn make_mapped_vectors_from_position_mapping<'gb>(mapping: HashMap<&'gb Rc<GraphBlock>, Position>) -> Vec<Vec<Option<MappedBlockDisplay>>>{

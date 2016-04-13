@@ -69,10 +69,16 @@ impl GraphConnection {
     } else if block_find_res.end.is_none() && !block_find_res.are_same {
       Err(format!("Block {} does not exist", spec.end))
     } else {
+      let start = Rc::downgrade(block_find_res.start.as_ref().unwrap());
+      let end = if block_find_res.are_same {
+        start.clone()
+      } else {
+        Rc::downgrade(block_find_res.end.as_ref().unwrap())
+      };
       let rc_conn = Rc::new(GraphConnection {
         spec: spec,
-        start_block: Rc::downgrade(block_find_res.start.as_ref().unwrap()),
-        end_block: Rc::downgrade(block_find_res.end.as_ref().unwrap()),
+        start_block: start,
+        end_block: end,
       });
       block_find_res.push_connections(&rc_conn);
       Ok(rc_conn)
