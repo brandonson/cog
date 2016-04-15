@@ -12,6 +12,41 @@ struct MappedBlockDisplay {
   graph_block: Rc<GraphBlock>,
 }
 
+struct BlockPositionMappingBuilder<'gb> {
+  blocks: HashMap<&'gb Rc<GraphBlock>, Position>,
+  positions: HashMap<Position, &'gb Rc<GraphBlock>>,
+}
+
+impl<'gb> BlockPositionMappingBuilder<'gb> {
+  fn add_block_position(&mut self, block:&'gb Rc<GraphBlock>, pos:Position) {
+    self.blocks.insert(block, pos);
+    self.positions.insert(pos, block);
+  }
+
+  fn has_block(&self, block: & Rc<GraphBlock>) -> bool {
+    self.blocks.contains_key(block)
+  }
+
+  fn has_position(&self, pos: &Position) -> bool {
+    self.positions.contains_key(pos)
+  }
+
+  fn get_block_position<'s>(&'s self, block: &Rc<GraphBlock>) -> Option<&'s Position> {
+    self.blocks.get(block)
+  }
+
+  fn into_block_position_map(self) -> HashMap<&'gb Rc<GraphBlock>, Position> {
+    self.blocks
+  }
+
+  fn new(block_count:usize) -> BlockPositionMappingBuilder<'gb> {
+    BlockPositionMappingBuilder {
+      blocks: HashMap::with_capacity(block_count),
+      positions: HashMap::with_capacity(block_count),
+    }
+  }
+}
+
 pub trait DynamicBlockLayout {
   fn lay_blocks(&self, blocks: &mut [Rc<GraphBlock>], constraints: &Constraint) -> Vec<Vec<Option<MappedBlockDisplay>>>;
 }
@@ -29,33 +64,43 @@ impl DynamicBlockLayout for DynamicLayoutCreator {
 
     let blocks:&'gb [Rc<GraphBlock>] = blocks;
 
-    let mut done_blocks:HashMap<&'gb Rc<GraphBlock>, Position> = HashMap::with_capacity(blocks.len());
+    let mut done_blocks = BlockPositionMappingBuilder::new(blocks.len());
 
     let first = &blocks[0];
     //Positions are unsigned, so just start far enough in that we can't realistically go below zero evenly spacing.
     //TODO rethink this
-    done_blocks.insert(first, Position::new((blocks.len()*2) as u32, (blocks.len()*2) as u32));
+    done_blocks.add_block_position(first, Position::new((blocks.len()*2) as u32, (blocks.len()*2) as u32));
 
     build_block_position_mapping(blocks, &mut done_blocks, first);
-    make_mapped_vectors_from_position_mapping(done_blocks)
+    make_mapped_vectors_from_position_mapping(done_blocks.into_block_position_map())
   }
 }
 
 fn build_block_position_mapping<'gb>(
   blocks: &'gb [Rc<GraphBlock>],
-  done_blocks:&mut HashMap<&'gb Rc<GraphBlock>, Position>,
+  done_blocks:&mut BlockPositionMappingBuilder<'gb>,
   build_from:&'gb Rc<GraphBlock>) {
 
-  let mut connected_heap:BinaryHeap<ConnectionCountSortedBlock<Rc<GraphBlock>>> = BinaryHeap::new();
+  let from_position = done_blocks.get_block_position(build_from).unwrap();
 
-  for conn in build_from.connections.borrow().iter() {
-    let far = conn.upgrade().unwrap().get_far_end(build_from);
-    connected_heap.push(ConnectionCountSortedBlock(far.upgrade().unwrap()));
-  }
+  let sorted_far_ends = collect_sorted_far_ends(blocks, build_from);
 
-  while !connected_heap.is_empty() {
-    let next_block = connected_heap.pop().unwrap();
+  for graph_block in sorted_far_ends.into_iter() {
+    if done_blocks.has_block(&graph_block) {
+      continue;
+    }
   }
+}
+
+fn collect_sorted_far_ends<'gb>(blocks: &'gb [Rc<GraphBlock>], build_from: &'gb Rc<GraphBlock>) -> Vec<Rc<GraphBlock>> {
+  let mut far_ends:Vec<ConnectionCountSortedBlock<Rc<GraphBlock>>> =
+    build_from.connections.borrow().iter()
+      .map(|c| c.upgrade().unwrap().get_far_end(build_from).upgrade().unwrap())
+      .map(|blk| ConnectionCountSortedBlock(blk))
+      .collect();
+  far_ends.sort_by(|block_a, block_b| block_b.cmp(block_a));
+
+  far_ends.into_iter().map(|ccsb| ccsb.0).collect()
 }
 
 fn make_mapped_vectors_from_position_mapping<'gb>(mapping: HashMap<&'gb Rc<GraphBlock>, Position>) -> Vec<Vec<Option<MappedBlockDisplay>>>{
