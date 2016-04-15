@@ -85,7 +85,7 @@ impl GraphConnection {
     }
   }
 
-  fn get_far_end(&self, from:&GraphBlock) -> Weak<GraphBlock> {
+  pub fn get_far_end(&self, from:&GraphBlock) -> Weak<GraphBlock> {
     if (*self.start_block.upgrade().unwrap()).spec == from.spec {
       self.end_block.clone()
     } else {

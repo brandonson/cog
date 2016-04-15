@@ -25,6 +25,7 @@ mod data;
 mod layout;
 mod render;
 mod graph;
+mod graphsort;
 mod display;
 
 docopt!(Args derive Debug, "
