@@ -57,6 +57,10 @@ impl GraphBlock {
       connections: RefCell::new(vec![]),
     }
   }
+
+  pub fn connection_count(&self) -> usize {
+    self.connections.borrow().len()
+  }
 }
 
 impl GraphConnection {

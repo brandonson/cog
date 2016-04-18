@@ -6,7 +6,7 @@ pub struct ConnectionCountSortedBlock<GB:Borrow<GraphBlock>>(pub GB);
 
 impl<GB:Borrow<GraphBlock>> ConnectionCountSortedBlock<GB> {
   fn connection_count(&self) -> usize {
-    self.connection_count()
+    self.0.borrow().connection_count()
   }
 }
 

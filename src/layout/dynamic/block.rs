@@ -1,6 +1,7 @@
 use graph::{Graph,GraphBlock};
 use layout::Constraint;
 use super::DynamicLayoutCreator;
+use super::positioning::LocalPositionIterator;
 use display::{BlockDisplay, Position};
 use std::rc::Rc;
 use std::collections::HashMap;
@@ -12,18 +13,18 @@ struct MappedBlockDisplay {
   graph_block: Rc<GraphBlock>,
 }
 
-struct BlockPositionMappingBuilder<'gb> {
-  blocks: HashMap<&'gb Rc<GraphBlock>, Position>,
-  positions: HashMap<Position, &'gb Rc<GraphBlock>>,
+struct BlockPositionMappingBuilder {
+  blocks: HashMap<Rc<GraphBlock>, Position>,
+  positions: HashMap<Position, Rc<GraphBlock>>,
 }
 
-impl<'gb> BlockPositionMappingBuilder<'gb> {
-  fn add_block_position(&mut self, block:&'gb Rc<GraphBlock>, pos:Position) {
-    self.blocks.insert(block, pos);
+impl BlockPositionMappingBuilder {
+  fn add_block_position(&mut self, block:Rc<GraphBlock>, pos:Position) {
+    self.blocks.insert(block.clone(), pos);
     self.positions.insert(pos, block);
   }
 
-  fn has_block(&self, block: & Rc<GraphBlock>) -> bool {
+  fn has_block(&self, block: &Rc<GraphBlock>) -> bool {
     self.blocks.contains_key(block)
   }
 
@@ -35,11 +36,11 @@ impl<'gb> BlockPositionMappingBuilder<'gb> {
     self.blocks.get(block)
   }
 
-  fn into_block_position_map(self) -> HashMap<&'gb Rc<GraphBlock>, Position> {
+  fn into_block_position_map(self) -> HashMap<Rc<GraphBlock>, Position> {
     self.blocks
   }
 
-  fn new(block_count:usize) -> BlockPositionMappingBuilder<'gb> {
+  fn new(block_count:usize) -> BlockPositionMappingBuilder {
     BlockPositionMappingBuilder {
       blocks: HashMap::with_capacity(block_count),
       positions: HashMap::with_capacity(block_count),
@@ -69,7 +70,7 @@ impl DynamicBlockLayout for DynamicLayoutCreator {
     let first = &blocks[0];
     //Positions are unsigned, so just start far enough in that we can't realistically go below zero evenly spacing.
     //TODO rethink this
-    done_blocks.add_block_position(first, Position::new((blocks.len()*2) as u32, (blocks.len()*2) as u32));
+    done_blocks.add_block_position(first.clone(), Position::new((blocks.len()*2) as u32, (blocks.len()*2) as u32));
 
     build_block_position_mapping(blocks, &mut done_blocks, first);
     make_mapped_vectors_from_position_mapping(done_blocks.into_block_position_map())
@@ -78,16 +79,26 @@ impl DynamicBlockLayout for DynamicLayoutCreator {
 
 fn build_block_position_mapping<'gb>(
   blocks: &'gb [Rc<GraphBlock>],
-  done_blocks:&mut BlockPositionMappingBuilder<'gb>,
+  done_blocks:&mut BlockPositionMappingBuilder,
   build_from:&'gb Rc<GraphBlock>) {
 
-  let from_position = done_blocks.get_block_position(build_from).unwrap();
+  let from_position = *done_blocks.get_block_position(build_from).unwrap();
 
   let sorted_far_ends = collect_sorted_far_ends(blocks, build_from);
 
   for graph_block in sorted_far_ends.into_iter() {
     if done_blocks.has_block(&graph_block) {
       continue;
+    }
+
+    // if there's only one connection, we want to place nearby
+    if graph_block.connection_count() <= 1 {
+      //Find a free position in the local positions
+      let block_pos =
+        LocalPositionIterator::new(from_position).find(|p| !done_blocks.has_position(&p)).unwrap();
+      done_blocks.add_block_position(graph_block, block_pos);
+      //Don't need to recurse and add this block's connected neighbours, since
+      //we got to it along its ownly connection
     }
   }
 }
@@ -103,7 +114,7 @@ fn collect_sorted_far_ends<'gb>(blocks: &'gb [Rc<GraphBlock>], build_from: &'gb 
   far_ends.into_iter().map(|ccsb| ccsb.0).collect()
 }
 
-fn make_mapped_vectors_from_position_mapping<'gb>(mapping: HashMap<&'gb Rc<GraphBlock>, Position>) -> Vec<Vec<Option<MappedBlockDisplay>>>{
+fn make_mapped_vectors_from_position_mapping(mapping: HashMap<Rc<GraphBlock>, Position>) -> Vec<Vec<Option<MappedBlockDisplay>>>{
   vec![]
 }
 

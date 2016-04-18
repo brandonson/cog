@@ -3,6 +3,7 @@ use self::block::DynamicBlockLayout;
 use graph::Graph;
 
 mod block;
+mod positioning;
 
 struct DynamicLayoutCreator {
   max_crossed_grids: u32,
