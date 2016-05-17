@@ -1,7 +1,7 @@
 use graph::{Graph,GraphBlock};
 use layout::Constraint;
 use super::DynamicLayoutCreator;
-use super::positioning::LocalPositionIterator;
+use super::positioning::{LocalPositionMode,LocalPositionIterator};
 use display::{BlockDisplay, Position};
 use std::rc::Rc;
 use std::collections::HashMap;
@@ -85,6 +85,7 @@ fn build_block_position_mapping<'gb>(
   let from_position = *done_blocks.get_block_position(build_from).unwrap();
 
   let sorted_far_ends = collect_sorted_far_ends(blocks, build_from);
+  let mut block_pos = Position::new(0,0);
 
   for graph_block in sorted_far_ends.into_iter() {
     if done_blocks.has_block(&graph_block) {
@@ -94,11 +95,43 @@ fn build_block_position_mapping<'gb>(
     // if there's only one connection, we want to place nearby
     if graph_block.connection_count() <= 1 {
       //Find a free position in the local positions
-      let block_pos =
-        LocalPositionIterator::new(from_position).find(|p| !done_blocks.has_position(&p)).unwrap();
+      block_pos =
+        LocalPositionIterator::new(from_position, LocalPositionMode::Corners, 1)
+          .find(|p| !done_blocks.has_position(&p)).unwrap();
       done_blocks.add_block_position(graph_block, block_pos);
       //Don't need to recurse and add this block's connected neighbours, since
       //we got to it along its ownly connection
+    } else {
+      block_pos =
+        LocalPositionIterator::new(from_position, LocalPositionMode::Centered, 1)
+          .find(|p| !done_blocks.has_position(&p)).unwrap();
+      done_blocks.add_block_position(graph_block.clone(), block_pos);
+
+      for conn in graph_block.connections.borrow().iter() {
+        let far = conn.upgrade().unwrap().get_far_end(&graph_block).upgrade().unwrap();
+        if !done_blocks.has_block(&far) {
+          build_block_position_mapping(
+            blocks,
+            done_blocks,
+            &far);
+        }
+      }
+    }
+  }
+  let incompleteFind = blocks.iter().find(|blk| !done_blocks.has_block(blk));
+  if let Some(incomplete) = incompleteFind {
+    block_pos =
+      LocalPositionIterator::new(block_pos, LocalPositionMode::Centered, 3)
+        .find(|p| !done_blocks.has_position(&p)).unwrap();
+    done_blocks.add_block_position(incomplete.clone(), block_pos);
+    for conn in incomplete.connections.borrow().iter() {
+      let far = conn.upgrade().unwrap().get_far_end(incomplete).upgrade().unwrap();
+      if !done_blocks.has_block(&far) {
+        build_block_position_mapping(
+          blocks,
+          done_blocks,
+          &far);
+      }
     }
   }
 }

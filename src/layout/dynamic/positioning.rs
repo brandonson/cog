@@ -1,5 +1,10 @@
 use display::Position;
 
+pub enum LocalPositionMode {
+  Corners,
+  Centered
+}
+
 pub struct LocalPositionIterator {
   //Base position to iterate out from
   base_position: Position,
@@ -18,6 +23,7 @@ pub struct LocalPositionIterator {
   //Each set is one diagonal step farther than the
   //previous set
   position_set: u32,
+  mode: LocalPositionMode,
 }
 
 impl LocalPositionIterator {
@@ -33,21 +39,32 @@ impl LocalPositionIterator {
     self.current_position_idx = 0;
     self.position_set = new_position_set;
 
-    self.current_positions[0] = self.gen_position(|bx, set| bx - set, |by, set| by - set);
-    self.current_positions[1] = self.gen_position(|bx, set| bx + set, |by, set| by - set);
-    self.current_positions[2] = self.gen_position(|bx, set| bx - set, |by, set| by + set);
-    self.current_positions[3] = self.gen_position(|bx, set| bx + set, |by, set| by + set);
+    match self.mode {
+      LocalPositionMode::Corners => {
+        self.current_positions[0] = self.gen_position(|bx, set| bx - set, |by, set| by - set);
+        self.current_positions[1] = self.gen_position(|bx, set| bx + set, |by, set| by - set);
+        self.current_positions[2] = self.gen_position(|bx, set| bx - set, |by, set| by + set);
+        self.current_positions[3] = self.gen_position(|bx, set| bx + set, |by, set| by + set);
+      },
+      LocalPositionMode::Centered => {
+        self.current_positions[0] = self.gen_position(|bx, set| bx - set, |by, set| by);
+        self.current_positions[1] = self.gen_position(|bx, set| bx + set, |by, set| by);
+        self.current_positions[2] = self.gen_position(|bx, set| bx, |by, set| by + set);
+        self.current_positions[3] = self.gen_position(|bx, set| bx, |by, set| by + set);
+      }
+    }
   }
 
-  pub fn new(base: Position) -> LocalPositionIterator {
+  pub fn new(base: Position, mode: LocalPositionMode, start_dist:u32) -> LocalPositionIterator {
     let mut iter = LocalPositionIterator {
       base_position: base,
       current_positions: [Position{x:0,y:0},Position{x:0,y:0},Position{x:0,y:0},Position{x:0,y:0}],
       current_position_idx: 0,
       position_set: 0,
+      mode: mode,
     };
 
-    iter.go_to_set(1);
+    iter.go_to_set(start_dist);
     iter
   }
 }

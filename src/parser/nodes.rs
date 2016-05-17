@@ -88,7 +88,10 @@ named! (eol_space_spec < &[u8], Vec<()> >,
     many1!(chain!(space? ~ line_ending, || ())));
 
 named! (pub full_graph_spec <&[u8], DataVec>,
-  separated_list!(eol_space_spec, data_spec)
+  chain!(
+    data: separated_list!(eol_space_spec, data_spec) ~
+    eol_space_spec,
+    || data)
 );
 
 #[cfg(test)]
